@@ -40,14 +40,14 @@ from scipy.optimize import minimize_scalar
 
 def linspace(start, stop, num=50, **kwargs):
     """Returns an array of evenly-spaced values in the interval [start, stop].
-    
+
     start: first value
     stop: last value
     num: number of values
 
     Also accepts the same keyword arguments as np.linspace.  See
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.linspace.html
-    
+
     returns: array or Quantity
     """
     underride(kwargs, dtype=np.float64)
@@ -64,13 +64,13 @@ def linspace(start, stop, num=50, **kwargs):
 
 def linrange(start=0, stop=None, step=1, **kwargs):
     """Returns an array of evenly-spaced values in the interval [start, stop].
-    
+
     This function works best if the space between start and stop
     is divisible by step; otherwise the results might be surprising.
 
     By default, the last value in the array is `stop` (at least approximately).
     If you provide the keyword argument `endpoint=False`, the last value
-    in the array is `stop-step`. 
+    in the array is `stop-step`.
 
     start: first value
     stop: last value
@@ -78,7 +78,7 @@ def linrange(start=0, stop=None, step=1, **kwargs):
 
     Also accepts the same keyword arguments as np.linspace.  See
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.linspace.html
-    
+
     returns: array or Quantity
     """
     if stop is None:
@@ -106,9 +106,9 @@ def linrange(start=0, stop=None, step=1, **kwargs):
 
 def fit_leastsq(error_func, params, data, **kwargs):
     """Find the parameters that yield the best fit for the data.
-    
+
     `params` can be a sequence, array, or Series
-    
+
     error_func: function that computes a sequence of errors
     params: initial guess for the best parameters
     data: the data to be fit; will be passed to min_fun
@@ -116,15 +116,15 @@ def fit_leastsq(error_func, params, data, **kwargs):
     """
     # to pass `data` to `leastsq`, we have to put it in a tuple
     args = (data,)
-    
+
     # override `full_output` so we get a message if something goes wrong
     kwargs['full_output'] = True
-    
+
     # run leastsq
     best_params, _, _, mesg, ier = leastsq(error_func, x0=params, args=args, **kwargs)
 
     #TODO: check why logging.info is not visible
-    
+
     # check for errors
     if ier in [1, 2, 3, 4]:
         print("""modsim.py: scipy.optimize.leastsq ran successfully
@@ -133,7 +133,7 @@ def fit_leastsq(error_func, params, data, **kwargs):
         logging.error("""modsim.py: When I ran scipy.optimize.leastsq, something
                          went wrong, and I got the following message:""")
         raise Exception(mesg)
-        
+
     # return the best parameters
     return best_params
 
@@ -159,7 +159,7 @@ def units_off():
     """Make all quantities behave as if they were dimensionless.
     """
     global SAVED_PINT_METHOD
-    
+
     SAVED_PINT_METHOD = UNITS._get_dimensionality
     UNITS._get_dimensionality = lambda self: {}
 
@@ -173,14 +173,14 @@ def units_on():
 
 def min_bounded(min_func, bounds, *args, **options):
     """Finds the input value that minimizes `min_func`.
-    
+
     min_func: computes the function to be minimized
     bounds: sequence of two values, lower and upper bounds of the
             range to be searched
     args: any additional positional arguments are passed to min_func
     options: any keyword arguments are passed as options to minimize_scalar
-    
-    returns: OptimizeResult object 
+
+    returns: OptimizeResult object
              (see https://docs.scipy.org/doc/scipy/
                   reference/generated/scipy.optimize.minimize_scalar.html)
     """
@@ -194,13 +194,13 @@ def min_bounded(min_func, bounds, *args, **options):
                  the following error:"""
         logger.error(msg)
         raise(e)
-        
+
     underride(options, xatol=1e-3)
-    
-    res = minimize_scalar(min_func, 
+
+    res = minimize_scalar(min_func,
                           bracket=bounds,
-                          bounds=bounds, 
-                          args=args, 
+                          bounds=bounds,
+                          args=args,
                           method='bounded',
                           options=options)
 
@@ -214,20 +214,20 @@ def min_bounded(min_func, bounds, *args, **options):
 
 def max_bounded(max_func, bounds, *args, **options):
     """Finds the input value that maximizes `max_func`.
-    
+
     min_func: computes the function to be maximized
     bounds: sequence of two values, lower and upper bounds of the
             range to be searched
     args: any additional positional arguments are passed to max_func
     options: any keyword arguments are passed as options to minimize_scalar
-    
-    returns: OptimizeResult object 
+
+    returns: OptimizeResult object
              (see https://docs.scipy.org/doc/scipy/
                   reference/generated/scipy.optimize.minimize_scalar.html)
     """
     def min_func(*args):
         return -max_func(*args)
-    
+
     res = min_bounded(min_func, bounds, *args, **options)
     # we have to negate the function value before returning res
     res.fun = -res.fun
@@ -236,13 +236,13 @@ def max_bounded(max_func, bounds, *args, **options):
 
 def run_odeint(system, slope_func, **kwargs):
     """Runs a simulation of the system.
-    
+
     `system` should contain system parameters and `ts`, which
     is an array or Series that specifies the time when the
     solution will be computed.
-    
+
     Adds a DataFrame to the System: results
-    
+
     system: System object
     slope_func: function that computes slopes
     """
@@ -253,10 +253,10 @@ def run_odeint(system, slope_func, **kwargs):
                  or Series that specifies the times when the
                  solution will be computed:"""
         raise ValueError(msg)
-    
+
     # make the system parameters available as globals
     unpack(system)
-    
+
     # try running the slope function with the initial conditions
     try:
         slope_func(init, ts[0], system)
@@ -267,12 +267,12 @@ def run_odeint(system, slope_func, **kwargs):
                  the following error:"""
         logger.error(msg)
         raise(e)
-    
+
     # when odeint calls slope_func, it should pass `system` as
     # the third argument.  To make that work, we have to make a
     # tuple with a single element and pass the tuple to odeint as `args`
     args = (system,)
-    
+
     # now we're ready to run `odeint` with `init` and `ts` from `system`
     units_off()
     array = odeint(slope_func, list(init), ts, args, **kwargs)
@@ -289,16 +289,16 @@ def interpolate(series, **options):
     series: Series object
     options: any legal options to scipy.interpolate.interp1d
 
-    returns: function that maps from the index of the series to values 
+    returns: function that maps from the index of the series to values
     """
     if sum(series.index.isnull()):
         msg = """The Series you passed to interpolate contains
                  NaN values in the index, which would result in
                  undefined behavior.  So I'm putting a stop to that."""
         raise ValueError(msg)
-    
+
     # make the interpolate function extrapolate past the ends of
-    # the range, unless `options` already specifies a value for `fill_value`    
+    # the range, unless `options` already specifies a value for `fill_value`
     underride(options, fill_value='extrapolate')
 
     # call interp1d, which returns a new function object
@@ -307,11 +307,11 @@ def interpolate(series, **options):
 
 def interp_inverse(series, **options):
     """Interpolate the inverse function of a Series.
-    
+
     series: Series object, represents a mapping from `a` to `b`
     kind: string, which kind of iterpolation
     options: keyword arguments passed to interpolate
-    
+
     returns: interpolation object, can be used as a function
              from `b` to `a`
     """
@@ -334,14 +334,14 @@ def unpack(series):
 def fsolve(func, x0, *args, **kwargs):
     """Return the roots of the (non-linear) equations
     defined by func(x) = 0 given a starting estimate.
-    
+
     Uses scipy.optimize.fsolve, with extra error-checking.
-    
+
     func: function to find the roots of
     x0: scalar or array, initial guess
     args: additional positional arguments are passed along to fsolve,
           which passes them along to func
-    
+
     returns: solution as an array
     """
     # make sure we can run the given function with x0
@@ -353,7 +353,7 @@ def fsolve(func, x0, *args, **kwargs):
                  you provided, and I got the following error:"""
         logger.error(msg)
         raise(e)
-    
+
     # make the tolerance more forgiving than the default
     underride(kwargs, xtol=1e-7)
 
@@ -388,7 +388,7 @@ class Simplot:
         """Initializes the instance variables."""
         # map from Figure to FigureState
         self.figure_states = dict()
-        
+
     def get_figure_state(self, figure=None):
         """Gets the state of the current figure.
 
@@ -398,14 +398,14 @@ class Simplot:
         """
         if figure is None:
             figure = plt.gcf()
-        
+
         try:
             return self.figure_states[figure]
         except KeyError:
             figure_state = FigureState()
             self.figure_states[figure] = figure_state
             return figure_state
-    
+
 SIMPLOT = Simplot()
 
 
@@ -414,7 +414,7 @@ class FigureState:
     def __init__(self):
         # map from style tuple to Lines object
         self.lines = dict()
-        
+
     def get_line(self, style, kwargs):
         """Gets the line object for a given style tuple.
 
@@ -439,7 +439,7 @@ class FigureState:
             line = self.make_line(style, kwargs)
             self.lines[key] = line
             return line
-    
+
     def make_line(self, style, kwargs):
         underride(kwargs, linewidth=3, alpha=0.6)
         if style is None:
@@ -454,27 +454,27 @@ class FigureState:
 
 def plot(*args, **kwargs):
     """Makes line plots.
-    
+
     args can be:
       plot(y)
       plot(y, style_string)
       plot(x, y)
       plot(x, y, style_string)
-    
+
     kwargs are the same as for pyplot.plot
-    
+
     If x or y have attributes label and/or units,
     label the axes accordingly.
-    
+
     """
     update = kwargs.pop('update', False)
 
     x = None
     y = None
     style = None
-    
+
     # parse the args the same way plt.plot does:
-    # 
+    #
     if len(args) == 1:
         y = args[0]
     elif len(args) == 2:
@@ -493,7 +493,7 @@ def plot(*args, **kwargs):
     figure = plt.gcf()
     figure_state = SIMPLOT.get_figure_state(figure)
     line = figure_state.get_line(style, kwargs)
-    
+
     # append y to ydata
     if update:
         ys = np.asarray(y)
@@ -510,7 +510,7 @@ def plot(*args, **kwargs):
         if hasattr(y, 'index'):
             x = y.index
 
-    # if we still don't have an x, increment the last element of xs  
+    # if we still don't have an x, increment the last element of xs
     if x is None:
         try:
             x = xs[-1] + 1
@@ -522,16 +522,16 @@ def plot(*args, **kwargs):
     else:
         xs = np.append(xs, x)
     line.set_xdata(xs)
-    
+
     #print(line.get_xdata())
     #print(line.get_ydata())
-    
+
     axes = plt.gca()
     axes.relim()
     axes.autoscale_view(True, True, True)
     axes.margins(0.02)
     figure.canvas.draw()
-    
+
 
 def contour(df, **options):
     """Makes a contour plot from a DataFrame.
@@ -562,7 +562,7 @@ def savefig(filename, *args, **kwargs):
     print('Saving figure to file', filename)
     return plt.savefig(filename, *args, **kwargs)
 
-    
+
 def label_axes(xlabel=None, ylabel=None, title=None, **kwargs):
     """Puts labels and title on the axes.
 
@@ -623,7 +623,7 @@ def subplot(nrows, ncols, plot_number, **kwargs):
     key = nrows, ncols
     default = (8, 5.5)
     width, height = figsize.get(key, default)
-    
+
     plt.subplot(nrows, ncols, plot_number, **kwargs)
     fig = plt.gcf()
     fig.set_figwidth(width)
@@ -672,11 +672,11 @@ def decorate(**kwargs):
     And you can use `loc` to indicate the location of the legend
     (the default value is 'best')
     """
-    # 
+    #
     if kwargs.pop('legend', True):
         loc = kwargs.pop('loc', 'best')
         legend(loc=loc)
-    
+
     plt.gca().set(**kwargs)
 
 
@@ -734,7 +734,7 @@ class System(MySeries):
 
         If there is one positional argument, copy it.
 
-        More than one positional argument is an error. 
+        More than one positional argument is an error.
         """
         if len(args) == 0:
             super().__init__(list(kwargs.values()), index=kwargs)
@@ -845,12 +845,12 @@ class SweepFrame(MyDataFrame):
 
 class _Vector(Quantity):
     """Represented as a Pint Quantity with a NumPy array
-    
+
     x, y, z, mag, mag2, and angle are accessible as attributes.
-    
+
     Supports vector operations hat, dot, cross, proj, and comp.
     """
-    
+
     @property
     def x(self):
         """Returns the x component with units."""
@@ -928,31 +928,31 @@ class _Vector(Quantity):
         else:
             #TODO: see http://www.euclideanspace.com/maths/algebra/vectors/angleBetween/
             raise NotImplementedError()
-        
-        
+
+
 def Vector(*args, units=None):
     # if there's only one argument, it should be iterable
     if len(args) == 1:
         args = args[0]
-        
+
         # if it's a series, pull out the values
         if isinstance(args, Series):
             args = args.values
-        
+
     # see if any of the arguments have unit; if so, save the first one
     for elt in args:
         found_units = getattr(elt, 'units', None)
         if found_units:
             break
-            
+
     if found_units:
         # if there are units, remove them
         args = [getattr(elt, 'magnitude', elt) for elt in args]
-    
+
     # if the units keyword is provided, it overrides the units in args
     if units is not None:
         found_units = units
-    
+
     return _Vector(args, found_units)
 
 
@@ -962,7 +962,7 @@ def cart2pol(x, y, z=None):
 
     rho = np.sqrt(x**2 + y**2)
     theta = np.arctan2(y, x)
-        
+
     if z is None:
         return theta, rho
     else:
@@ -977,7 +977,7 @@ def pol2cart(theta, rho, z=None):
             msg = """In pol2cart, theta must be either a number or
             a Quantity in degrees or radians."""
             raise ValueError(msg)
-        
+
     x = rho * np.cos(theta)
     y = rho * np.sin(theta)
 
