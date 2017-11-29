@@ -347,7 +347,7 @@ def fsolve(func, x0, *args, **kwargs):
     returns: solution as an array
     """
     # make sure we can run the given function with x0
-    x0 = asarray(x0).flatten() 
+    x0 = np.asarray(x0).flatten() 
     
     try:
         func(x0, *args)
@@ -568,7 +568,6 @@ def savefig(filename, *args, **kwargs):
     """
     print('Saving figure to file', filename)
     return plt.savefig(filename, *args, **kwargs)
-
 
 def label_axes(xlabel=None, ylabel=None, title=None, **kwargs):
     """Puts labels and title on the axes.
